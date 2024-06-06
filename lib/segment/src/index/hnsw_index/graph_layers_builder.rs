@@ -301,6 +301,13 @@ impl GraphLayersBuilder {
             locked_links.clear();
             locked_links.extend(patch.links);
         }
+        let level = self.get_point_level(point_id);
+        self
+            .entry_points
+            .lock()
+            .new_point(point_id, level, |point_id| {
+                points_scorer.check_vector(point_id)
+            });
     }
 
     pub fn link_new_point_impl(&self, point_id: PointOffsetType, points_scorer: &mut FilteredScorer) -> Vec<GraphLayersPatch> {
@@ -314,7 +321,7 @@ impl GraphLayersBuilder {
         let entry_point_opt = self
             .entry_points
             .lock()
-            .new_point(point_id, level, |point_id| {
+            .get_entry_point(|point_id| {
                 points_scorer.check_vector(point_id)
             });
         match entry_point_opt {
