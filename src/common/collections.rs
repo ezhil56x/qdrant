@@ -600,6 +600,29 @@ pub async fn do_update_collection_cluster(
                 )
                 .await
         }
+
+        ClusterOperations::CommitRead(_) => {
+            let Some(state) = collection.resharding_state().await else {
+                return Err(StorageError::bad_request(format!(
+                    "resharding is not in progress for collection {collection_name}"
+                )));
+            };
+
+            dispatcher
+                .submit_collection_meta_op(
+                    CollectionMetaOperations::Resharding(
+                        collection_name.clone(),
+                        ReshardingOperation::CommitRead(ReshardKey {
+                            peer_id: state.peer_id,
+                            shard_id: state.shard_id,
+                            shard_key: state.shard_key.clone(),
+                        }),
+                    ),
+                    access,
+                    wait_timeout,
+                )
+                .await
+        }
     }
 }
 

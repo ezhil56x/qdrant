@@ -32,6 +32,10 @@ pub enum ClusterOperations {
     // Abort resharding
     #[schemars(skip)]
     AbortResharding(AbortReshardingOperation),
+
+    // Force `CommitRead` operation
+    #[schemars(skip)]
+    CommitRead(CommitReadOperation),
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema, Validate, Clone)]
@@ -110,6 +114,7 @@ impl Validate for ClusterOperations {
             ClusterOperations::RestartTransfer(op) => op.validate(),
             ClusterOperations::StartResharding(op) => op.validate(),
             ClusterOperations::AbortResharding(op) => op.validate(),
+            ClusterOperations::CommitRead(op) => op.validate(),
         }
     }
 }
@@ -150,6 +155,11 @@ pub struct StartReshardingOperation {
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Validate)]
 pub struct AbortReshardingOperation {
     pub abort_resharding: AbortResharding,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Validate)]
+pub struct CommitReadOperation {
+    pub commit_read: CommitRead,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema, Clone)]
@@ -213,3 +223,6 @@ pub struct StartResharding {
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Validate)]
 pub struct AbortResharding {}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Validate)]
+pub struct CommitRead {}
