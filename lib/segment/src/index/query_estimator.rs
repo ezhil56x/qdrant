@@ -349,6 +349,7 @@ mod tests {
                 exp: TOTAL / 2,
                 max: TOTAL,
             },
+            Condition::Abstract(_) => todo!(),
         }
     }
 

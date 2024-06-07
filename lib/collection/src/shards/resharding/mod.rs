@@ -33,6 +33,7 @@ pub struct ReshardState {
     pub peer_id: PeerId,
     pub shard_id: ShardId,
     pub shard_key: Option<ShardKey>,
+    pub filter_read_operations: bool, // TODO(resharding): Add proper resharding state!
 }
 
 impl ReshardState {
@@ -41,6 +42,7 @@ impl ReshardState {
             peer_id,
             shard_id,
             shard_key,
+            filter_read_operations: false,
         }
     }
 

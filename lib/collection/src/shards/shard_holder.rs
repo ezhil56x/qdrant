@@ -8,7 +8,7 @@ use std::time::Duration;
 use common::cpu::CpuBudget;
 use futures::Future;
 use itertools::Itertools;
-use segment::types::ShardKey;
+use segment::types::{Condition, Filter, ShardKey};
 use tar::Builder as TarBuilder;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, RwLock};
@@ -236,7 +236,15 @@ impl ShardHolder {
             Ok(())
         })?;
 
-        todo!()
+        self.resharding_state.write(|state| {
+            let Some(state) = state else {
+                unreachable!();
+            };
+
+            state.filter_read_operations = true; // TODO(resharding): Add proper resharding state!
+        })?;
+
+        Ok(())
     }
 
     pub fn commit_write_hashring(&mut self, resharding_key: ReshardKey) -> CollectionResult<()> {
@@ -351,6 +359,37 @@ impl ShardHolder {
         }
 
         Ok(())
+    }
+
+    pub fn resharding_filter(&self) -> Option<Filter> {
+        let state = self.resharding_state.read();
+
+        let Some(state) = state.deref() else {
+            return None;
+        };
+
+        if !state.filter_read_operations {
+            return None;
+        }
+
+        let Some(ring) = self.rings.get(&state.shard_key) else {
+            return None; // TODO(resharding)!?
+        };
+
+        let HashRing::Resharding { new, .. } = ring else {
+            return None; // TODO(resharding)!?
+        };
+
+        let filter = {
+            let ring = new.clone();
+            let shard_id = state.shard_id;
+
+            move |point_id| ring.get(&point_id) == Some(&shard_id)
+        };
+
+        let filter = Filter::new_must_not(Condition::Abstract(Arc::new(filter)));
+
+        Some(filter)
     }
 
     pub fn add_shard(

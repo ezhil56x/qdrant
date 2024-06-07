@@ -5,7 +5,7 @@ use futures::stream::FuturesUnordered;
 use futures::{future, StreamExt as _, TryFutureExt, TryStreamExt as _};
 use itertools::Itertools;
 use segment::data_types::order_by::{Direction, OrderBy};
-use segment::types::{ShardKey, WithPayload, WithPayloadInterface};
+use segment::types::{Filter, ShardKey, WithPayload, WithPayloadInterface};
 use validator::Validate as _;
 
 use super::Collection;
@@ -207,10 +207,15 @@ impl Collection {
 
     pub async fn scroll_by(
         &self,
-        request: ScrollRequestInternal,
+        mut request: ScrollRequestInternal,
         read_consistency: Option<ReadConsistency>,
         shard_selection: &ShardSelectorInternal,
     ) -> CollectionResult<ScrollResult> {
+        merge_filters(
+            &mut request.filter,
+            self.shards_holder.read().await.resharding_filter(),
+        );
+
         let default_request = ScrollRequestInternal::default();
 
         let id_offset = request.offset;
@@ -351,10 +356,15 @@ impl Collection {
 
     pub async fn count(
         &self,
-        request: CountRequestInternal,
+        mut request: CountRequestInternal,
         read_consistency: Option<ReadConsistency>,
         shard_selection: &ShardSelectorInternal,
     ) -> CollectionResult<CountResult> {
+        merge_filters(
+            &mut request.filter,
+            self.shards_holder.read().await.resharding_filter(),
+        );
+
         let shards_holder = self.shards_holder.read().await;
         let shards = shards_holder.select_shards(shard_selection)?;
 
@@ -425,5 +435,14 @@ impl Collection {
             .filter(|point| covered_point_ids.insert(point.id))
             .collect();
         Ok(points)
+    }
+}
+
+fn merge_filters(filter: &mut Option<Filter>, resharding_filter: Option<Filter>) {
+    if let Some(resharding_filter) = resharding_filter {
+        *filter = Some(match filter.take() {
+            Some(filter) => filter.merge_owned(resharding_filter),
+            None => resharding_filter,
+        });
     }
 }
