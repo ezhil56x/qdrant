@@ -308,6 +308,30 @@ impl StructPayloadIndex {
             Condition::Field(field_condition) => self
                 .estimate_field_condition(field_condition, nested_path)
                 .unwrap_or_else(|| CardinalityEstimation::unknown(self.available_point_count())),
+
+            Condition::Abstract(cond) => {
+                // TODO(resharding): I have no idea what I'm doing... 💀
+
+                let id_tracker = self.id_tracker.borrow();
+
+                let ids: HashSet<_> = id_tracker
+                    .iter_internal()
+                    .filter(|&internal_id| {
+                        id_tracker
+                            .external_id(internal_id)
+                            .map_or(false, |external_id| cond(external_id))
+                    })
+                    .collect();
+
+                let num_ids = ids.len();
+
+                CardinalityEstimation {
+                    primary_clauses: vec![PrimaryCondition::Ids(ids)],
+                    min: num_ids,
+                    exp: num_ids,
+                    max: num_ids,
+                }
+            }
         }
     }
 

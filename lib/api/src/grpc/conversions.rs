@@ -1035,6 +1035,10 @@ impl From<segment::types::Condition> for Condition {
             segment::types::Condition::Nested(nested) => {
                 ConditionOneOf::Nested(nested.nested.into())
             }
+
+            segment::types::Condition::Abstract(_) => {
+                unimplemented!()
+            }
         };
 
         Self {

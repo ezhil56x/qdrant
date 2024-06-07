@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use common::types::PointOffsetType;
 use serde_json::Value;
@@ -122,6 +122,18 @@ pub fn condition_converter<'a>(
             })
         }
         Condition::Filter(_) => unreachable!(),
+
+        Condition::Abstract(cond) => {
+            let external_ids: HashMap<_, _> = id_tracker
+                .iter_internal()
+                .filter_map(|internal_id| Some((internal_id, id_tracker.external_id(internal_id)?)))
+                .collect();
+
+            Box::new(move |point_id| match external_ids.get(&point_id) {
+                Some(&point_id) => cond(point_id),
+                None => false,
+            })
+        }
     }
 }
 

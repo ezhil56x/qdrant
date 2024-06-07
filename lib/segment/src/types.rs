@@ -1,10 +1,11 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fmt::{Display, Formatter};
+use std::fmt::{self, Display, Formatter};
 use std::hash::Hash;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use common::types::ScoreType;
 use fnv::FnvBuildHasher;
@@ -1930,7 +1931,7 @@ impl NestedCondition {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, JsonSchema, Clone)]
 #[serde(untagged)]
 #[allow(clippy::large_enum_variant)]
 pub enum Condition {
@@ -1946,6 +1947,37 @@ pub enum Condition {
     Nested(NestedCondition),
     /// Nested filter
     Filter(Filter),
+
+    #[serde(skip)]
+    Abstract(Arc<dyn Fn(PointIdType) -> bool + Send + Sync + 'static>),
+}
+
+impl fmt::Debug for Condition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Field(arg0) => f.debug_tuple("Field").field(arg0).finish(),
+            Self::IsEmpty(arg0) => f.debug_tuple("IsEmpty").field(arg0).finish(),
+            Self::IsNull(arg0) => f.debug_tuple("IsNull").field(arg0).finish(),
+            Self::HasId(arg0) => f.debug_tuple("HasId").field(arg0).finish(),
+            Self::Nested(arg0) => f.debug_tuple("Nested").field(arg0).finish(),
+            Self::Filter(arg0) => f.debug_tuple("Filter").field(arg0).finish(),
+            Self::Abstract(_) => f.debug_tuple("Abstract").finish(),
+        }
+    }
+}
+
+impl PartialEq for Condition {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Field(l0), Self::Field(r0)) => l0 == r0,
+            (Self::IsEmpty(l0), Self::IsEmpty(r0)) => l0 == r0,
+            (Self::IsNull(l0), Self::IsNull(r0)) => l0 == r0,
+            (Self::HasId(l0), Self::HasId(r0)) => l0 == r0,
+            (Self::Nested(l0), Self::Nested(r0)) => l0 == r0,
+            (Self::Filter(l0), Self::Filter(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
 }
 
 impl Condition {
@@ -1964,6 +1996,7 @@ impl Validate for Condition {
             Condition::Field(field_condition) => field_condition.validate(),
             Condition::Nested(nested_condition) => nested_condition.validate(),
             Condition::Filter(filter) => filter.validate(),
+            Condition::Abstract(_) => Ok(()),
         }
     }
 }

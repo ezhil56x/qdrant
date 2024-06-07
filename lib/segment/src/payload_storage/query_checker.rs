@@ -148,6 +148,10 @@ where
                 })
         }
         Condition::Filter(_) => unreachable!(),
+
+        Condition::Abstract(cond) => id_tracker
+            .and_then(|id_tracker| id_tracker.external_id(point_id))
+            .map_or(false, |point_id| cond(point_id)),
     };
 
     check_filter(&checker, query)
